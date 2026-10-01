@@ -1,0 +1,12 @@
+{
+  "name": "Orba Lab V1",
+  "short_name": "Orba Lab",
+  "description": "Unofficial web control surface for Artiphon Orba 2",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0b0d11",
+  "theme_color": "#101216",
+  "icons": [
+    {"src":"icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}
+  ]
+}

@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#101216" />
+  <title>Orba Lab V1.1</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="simple">
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand-wrap">
+        <div class="orb-mark" aria-hidden="true"><span></span></div>
+        <div>
+          <div class="brand">ORBA LAB <span class="version">V1.1</span></div>
+          <div class="subtitle">unofficial control surface · Orba 2</div>
+        </div>
+      </div>
+      <div class="top-actions">
+        <div class="mode-toggle" role="group" aria-label="Tryb interfejsu">
+          <button class="mode-btn active" data-mode="simple">SIMPLE</button>
+          <button class="mode-btn" data-mode="advanced">ADVANCED</button>
+        </div>
+      </div>
+    </header>
+
+    <section class="connection-strip panel">
+      <div class="connection-left">
+        <div class="status-dot" id="statusDot"></div>
+        <div>
+          <div class="connection-status" id="connectionStatus">Niepołączono</div>
+          <div class="connection-detail" id="connectionDetail">Chrome/Chromium + HTTPS wymagane dla pełnej obsługi</div>
+        </div>
+      </div>
+      <div class="connection-buttons">
+        <button class="btn primary" id="usbConnect">USB</button>
+        <button class="btn" id="bleConnect">BT</button>
+        <button class="btn ghost" id="refreshState" disabled title="Odczytaj ponownie stan Orby">↻</button>
+        <button class="btn restore-btn" id="restoreBaselineBtn" disabled title="Przywróć ustawienia z chwili połączenia">↶ START</button>
+      </div>
+      <div class="device-badges">
+        <span class="badge" id="batteryBadge">🔋 ?</span>
+        <span class="badge" id="transportBadge">⏹ idle</span>
+        <span class="badge context-badge" id="secureBadge">context?</span>
+      </div>
+    </section>
+
+    <div class="context-warning" id="contextWarning" hidden>
+      <b>USB MIDI wymaga wersji HTTPS.</b> Otwierasz aplikację jako lokalny plik, więc Chrome może odmówić dostępu do SysEx. Bluetooth nadal może działać.
+    </div>
+
+    <nav class="view-tabs" aria-label="Widok aplikacji">
+      <button class="view-tab active" data-view-target="performance">PERFORMANCE</button>
+      <button class="view-tab" data-view-target="sample">SAMPLE</button>
+    </nav>
+
+    <main>
+      <div class="view-pane performance-view active" data-view="performance">
+      <section class="parts-grid" id="partsGrid">
+        <article class="part-card drum" data-part="drum">
+          <div class="part-head"><span class="part-num">1</span><span>DRUM</span></div>
+          <div class="preset-name" data-preset-current="drum">—</div>
+          <select class="preset-select" data-preset-select="drum" aria-label="Preset Drum"><option>Biblioteka presetów…</option></select>
+          <div class="part-mini"><span data-part-vol="drum">Vol --</span><span data-part-rev="drum">Rev --</span><span data-part-del="drum">Del --</span></div>
+        </article>
+        <article class="part-card bass" data-part="bass">
+          <div class="part-head"><span class="part-num">2</span><span>BASS</span></div>
+          <div class="preset-name" data-preset-current="bass">—</div>
+          <select class="preset-select" data-preset-select="bass" aria-label="Preset Bass"><option>Biblioteka presetów…</option></select>
+          <div class="part-mini"><span data-part-vol="bass">Vol --</span><span data-part-rev="bass">Rev --</span><span data-part-del="bass">Del --</span></div>
+        </article>
+        <article class="part-card chord" data-part="chord">
+          <div class="part-head"><span class="part-num">3</span><span>CHORD</span></div>
+          <div class="preset-name" data-preset-current="chord">—</div>
+          <select class="preset-select" data-preset-select="chord" aria-label="Preset Chord"><option>Biblioteka presetów…</option></select>
+          <div class="part-mini"><span data-part-vol="chord">Vol --</span><span data-part-rev="chord">Rev --</span><span data-part-del="chord">Del --</span></div>
+        </article>
+        <article class="part-card lead" data-part="lead">
+          <div class="part-head"><span class="part-num">4</span><span>LEAD</span></div>
+          <div class="preset-name" data-preset-current="lead">—</div>
+          <select class="preset-select" data-preset-select="lead" aria-label="Preset Lead"><option>Biblioteka presetów…</option></select>
+          <div class="part-mini"><span data-part-vol="lead">Vol --</span><span data-part-rev="lead">Rev --</span><span data-part-del="lead">Del --</span></div>
+        </article>
+      </section>
+
+      <section class="work-grid">
+        <article class="panel transport-panel">
+          <div class="panel-title-row">
+            <div><div class="eyebrow">LOOPER</div><h2>Transport</h2></div>
+            <label class="toggle-inline"><input type="checkbox" id="metronomeToggle"><span></span><b>Metronom</b></label>
+          </div>
+          <div class="transport-row">
+            <button class="transport-btn rec" id="recordBtn">●<span>REC / OVERDUB</span></button>
+            <button class="transport-btn" id="playBtn">▶<span>PLAY</span></button>
+            <button class="transport-btn" id="pauseBtn">Ⅱ<span>PAUSE</span></button>
+          </div>
+          <div class="transport-row secondary">
+            <button class="btn warn" id="clearTrackBtn">Wyczyść ścieżkę</button>
+            <button class="btn danger" id="clearAllBtn">Wyczyść wszystko</button>
+          </div>
+          <div class="tempo-row">
+            <div class="tempo-box">
+              <label>BPM</label>
+              <input id="bpmInput" type="number" min="10" max="400" step="0.01" value="120" />
+            </div>
+            <button class="btn" id="tapTempoBtn">TAP TEMPO</button>
+            <div class="loop-flag" id="loopFlag">Loop: —</div>
+          </div>
+        </article>
+
+        <article class="panel mixer-panel">
+          <div class="panel-title-row">
+            <div><div class="eyebrow">MIXER</div><h2 id="mixerTitle">DRUM</h2></div>
+            <button class="btn ghost" id="mixerRefresh">↻</button>
+          </div>
+          <div class="faders">
+            <label class="fader"><span>Volume</span><input id="volSlider" type="range" min="0" max="100" value="70"><output id="volOut">70%</output></label>
+            <label class="fader advanced-only"><span>Pan</span><input id="panSlider" type="range" min="0" max="100" value="50"><output id="panOut">50%</output></label>
+            <label class="fader"><span>Reverb</span><input id="revSlider" type="range" min="0" max="100" value="0"><output id="revOut">0%</output></label>
+            <label class="fader"><span>Delay</span><input id="delSlider" type="range" min="0" max="100" value="0"><output id="delOut">0%</output></label>
+          </div>
+        </article>
+      </section>
+      </div>
+
+      <div class="view-pane sample-view" data-view="sample">
+      <section class="panel sample-panel">
+        <div class="panel-title-row">
+          <div><div class="eyebrow">SAMPLE WORKBENCH</div><h2>Nagraj lub dodaj własny dźwięk</h2></div>
+          <span class="tag beta">LOCAL V1</span>
+        </div>
+        <p class="muted small">V1 nagrywa/importuje, przycina, normalizuje i zapisuje sample lokalnie. Bezpośredni transfer do Orby jest przygotowany w UI, ale pozostaje zablokowany do czasu bezpiecznego odtworzenia protokołu plikowego.</p>
+        <div class="sample-actions">
+          <button class="btn primary" id="micRecordBtn">🎙 Nagraj z telefonu</button>
+          <label class="btn file-btn">＋ Dodaj plik<input id="audioFileInput" type="file" accept="audio/*" hidden></label>
+          <button class="btn ghost" id="sampleClearBtn">Wyczyść edytor</button>
+        </div>
+        <div class="sample-editor" id="sampleEditor">
+          <div class="wave-wrap">
+            <canvas id="waveCanvas" width="1200" height="260"></canvas>
+            <div class="selection-info" id="selectionInfo">Brak próbki</div>
+          </div>
+          <div class="sample-controls">
+            <div class="duration-pills" id="durationPills">
+              <button data-sec="1">1 s</button><button data-sec="3">3 s</button><button data-sec="5" class="active">5 s</button><button data-sec="10">10 s</button><button data-sec="20">20 s</button>
+            </div>
+            <label class="wide-control"><span>Początek fragmentu</span><input id="sampleStartSlider" type="range" min="0" max="0" step="0.01" value="0"></label>
+            <label class="wide-control advanced-only"><span>Normalize</span><input id="normalizeToggle" type="checkbox" checked></label>
+            <div class="sample-meta">
+              <input id="sampleNameInput" type="text" maxlength="50" placeholder="Nazwa sampla" />
+              <select id="sampleTarget"><option value="drum">Drum</option><option value="bass">Bass</option><option value="chord">Chord</option><option value="lead">Lead</option></select>
+              <select id="sampleSlot" class="advanced-only"><option value="1">Slot 1</option><option value="2">Slot 2</option><option value="3">Slot 3</option><option value="4">Slot 4</option><option value="5">Slot 5</option><option value="6">Slot 6</option><option value="7">Slot 7</option><option value="8">Slot 8</option><option value="9">Slot 9</option><option value="10">Slot 10</option><option value="11">Slot 11</option><option value="12">Slot 12</option></select>
+            </div>
+            <div class="sample-actions bottom">
+              <button class="btn" id="samplePreviewBtn" disabled>▶ Odsłuch</button>
+              <button class="btn" id="sampleSaveBtn" disabled>💾 Zapisz lokalnie</button>
+              <button class="btn" id="sampleDownloadBtn" disabled>↓ WAV</button>
+              <button class="btn locked" id="sampleSendBtn" disabled>⇧ Wyślij do Orby <span>V2</span></button>
+            </div>
+          </div>
+        </div>
+        <div class="sample-library-wrap">
+          <div class="subhead"><h3>Moje sample</h3><span id="sampleCount">0</span></div>
+          <div id="sampleLibrary" class="sample-library"><div class="empty">Jeszcze nic tu nie ma.</div></div>
+        </div>
+      </section>
+      </div>
+
+      <section class="advanced-zone advanced-only">
+        <article class="panel">
+          <div class="panel-title-row"><div><div class="eyebrow">DEVICE</div><h2>Ustawienia Orby</h2></div><span class="tag">ADVANCED</span></div>
+          <div class="settings-grid">
+            <label class="switch-row"><span>Haptics / wibracje</span><input type="checkbox" id="hapticsToggle"><i></i></label>
+            <label class="field-row"><span>MIDI mode</span><select id="midiModeSelect"><option value="0">Per-part</option><option value="1">MPE</option><option value="2">Single channel</option></select></label>
+            <label class="field-row"><span>Pitch bend</span><select id="pitchBendSelect"><option value="0">0%</option><option value="12">25%</option><option value="24">75%</option><option value="48">100%</option></select></label>
+            <label class="field-row"><span>Tonacja</span><select id="keySelect"></select></label>
+            <label class="field-row"><span>Skala</span><select id="scaleSelect"></select></label>
+            <label class="field-row"><span>Kwantyzacja aktywnej części</span><select id="quantSelect"><option value="0">Off</option><option value="1">Grid</option><option value="2">Groove</option></select></label>
+            <div class="baseline-box">
+              <span id="baselineStatus">Punkt startowy: brak</span>
+              <button class="btn ghost" id="saveBaselineBtn">Zapisz stan teraz</button>
+            </div>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-title-row"><div><div class="eyebrow">PRESET LIBRARY</div><h2>Biblioteka brzmień</h2></div><span class="tag" id="presetLibraryStatus">loading…</span></div>
+          <p class="muted small">Aplikacja próbuje pobrać publiczną bibliotekę nazw presetów Orba Console. Jeśli to się nie uda, możesz wskazać lokalny plik <code>orba-library.json</code>.</p>
+          <div class="inline-actions">
+            <button class="btn" id="reloadPresetLibrary">Pobierz ponownie</button>
+            <label class="btn file-btn">Import JSON<input id="presetLibraryInput" type="file" accept="application/json,.json" hidden></label>
+          </div>
+        </article>
+
+        <article class="panel diagnostics-panel">
+          <div class="panel-title-row"><div><div class="eyebrow">DIAGNOSTICS</div><h2>Log komunikacji</h2></div><button class="btn ghost" id="clearLog">Wyczyść</button></div>
+          <pre id="logBox"></pre>
+        </article>
+      </section>
+    </main>
+
+    <footer>
+      <span>Orba Lab V1.1 · nieoficjalny projekt interoperacyjny</span>
+      <span>Nie zmienia firmware. Nie wykonuje skanowania nieznanych rejestrów.</span>
+    </footer>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
