@@ -1,48 +1,28 @@
-# Orba Lab V1.1
+# Orba Lab V1.2
 
-Nieoficjalny webowy panel do Artiphon Orba 2, projektowany głównie pod Samsung S24 i Tab S7.
+Nieoficjalny panel do Orba 2. Strona: https://epistemiczny.github.io/orba-lab/
 
-## Co zmieniło się po pierwszym teście na prawdziwej Orbie
-- **Simple** został przebudowany jako kompaktowy ekran PERFORMANCE, który na telefonie ma mieścić się możliwie w jednym widoku bez przewijania.
-- SAMPLE jest osobnym widokiem zamiast długiej sekcji pod konsolą.
-- dodany automatyczny **punkt startowy** po połączeniu z Orbą i przycisk **↶ START** do przywracania ustawień,
-- usunięty przełącznik głośnika z UI,
-- poprawiona diagnostyka USB/Web MIDI,
-- bateria jest odpytywana ponownie po połączeniu zamiast pozostawiać martwe `--%` bez próby ponownego odczytu.
+## Interfejs
+Gra / Sample / Ustawienia. Dotykowe pokrętła z pierścieniem wartości: przeciągaj w górę lub w dół. Klawiatura: strzałki na aktywnym pokrętle. Telefon w pionie: mikser nad looperem, naturalne przewijanie bez przycinania. Wzorcem podziału pracy są Ableton Note i OP-1; aplikacja nie kopiuje ich funkcji.
 
-## Ważne o USB MIDI
-Web MIDI z SysEx wymaga bezpiecznego kontekstu. Otwieranie pliku jako `content://...` / zwykłego lokalnego pliku na Androidzie może powodować błąd `Permission to use Web MIDI API was not granted`.
+## Połączenie i diagnostyka
+Samo połączenie USB/Bluetooth jest pasywne i nie wysyła poleceń. Kliknij Odczyt, aby pobrać stan. Transmisje są kolejkowane; pełne odczyty nie nakładają się. Przy rozłączeniu czyszczone są stan baterii i punkt przywracania. Odrzucane są odpowiedzi z błędnym CRC i nieznany format baterii. Brak odczytu oznacza —, nigdy domyślne 100%.
 
-**Do USB używaj wersji opublikowanej po HTTPS** (np. GitHub Pages). Bluetooth może służyć do testów lokalnych, jeśli przeglądarka na to pozwala.
+Przywracanie jest dostępne dopiero po odczycie wymaganych parametrów. Nie kasuje loopów ani sampli. Przyciskiem w Ustawieniach można świadomie włączyć głośnik; aplikacja nie robi tego automatycznie.
 
-## Punkt startowy / restore
-Po pierwszym pełnym odczycie stanu Orby aplikacja zapamiętuje ustawienia z chwili połączenia. `↶ START` przywraca:
-- aktywną część,
-- haptics,
-- MIDI mode / pitch bend,
-- BPM, key, scale, metronom,
-- Volume / Pan / Reverb / Delay / Quantize każdej części,
-- presety, jeśli aplikacja potrafi jednoznacznie dopasować ich nazwy do biblioteki.
+## Test na urządzeniu
+1. Zamknij Artiphon Connect i inne aplikacje MIDI.
+2. Włącz Orbę i sprawdź jej dźwięk bez kabla.
+3. Podepnij kabel bez klikania USB w przeglądarce. Sprawdź dźwięk.
+4. Kliknij USB, sprawdź dźwięk. Samo połączenie powinno pozostawić log bez TX.
+5. Kliknij Odczyt, sprawdź dźwięk oraz baterię.
+6. Przy problemie: Ustawienia → Zapisz log. Zanotuj, na którym kroku wystąpił.
+7. Rozłącz, odłącz kabel i przetestuj Bluetooth osobno.
 
-Nie rusza loopów ani sampli — to celowe, żeby przycisk nie był destrukcyjny.
+Przyczyna zgłoszonej ciszy po USB nie została potwierdzona na fizycznym urządzeniu. Zmiany transportu i walidacji wymagają testu sprzętowego. Transfer sampli nadal zablokowany; sample są lokalne.
 
-## Sample Workbench
-- mikrofon telefonu,
-- import pliku audio,
-- waveform,
-- okno 1/3/5/10/20 s,
-- preview / normalize / eksport WAV,
-- lokalna biblioteka sampli.
-
-Bezpośredni `SEND TO ORBA` nadal jest zablokowany do czasu odtworzenia bezpiecznego transferu plikowego starego Artiphon Connect.
-
-## Pierwszy test V1.1
-1. Otwórz stronę po HTTPS.
-2. Połącz Orbę przez USB albo Bluetooth.
-3. Poczekaj chwilę na synchronizację i punkt START.
-4. Sprawdź, czy bateria się pojawiła. Jeśli nadal jest `?`, wejdź w Advanced → Diagnostics i zachowaj log.
-5. Zmień Haptics, Volume/Reverb lub preset.
-6. Kliknij `↶ START` i sprawdź, czy ustawienia wróciły.
-
-## Źródła / credits
-Patrz `THIRD_PARTY_NOTICES.md`.
+## Źródła
+- https://www.ableton.com/en/note/manual/
+- https://teenage.engineering/guides/op-1
+- https://github.com/holofermes/orba-protocol/blob/main/spec/SPEC.md
+- THIRD_PARTY_NOTICES.md

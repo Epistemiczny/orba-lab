@@ -4,7 +4,7 @@ import {
   looper, setKey, setScale, setQuantize, setHaptics, setSpeaker,
   setMetronome, setMidiMode, setPitchBend, GETS, getPresetName,
   getQuantize, bleWrapMidiPackets, BleMidiSysexParser, decodeAscii
-} from './protocol.js';
+} from './protocol.js?v=1.2';
 
 const $ = (s, root=document) => root.querySelector(s);
 const $$ = (s, root=document) => [...root.querySelectorAll(s)];
@@ -26,6 +26,8 @@ const state = {
   view: localStorage.getItem('orbaLabView') || 'performance',
   activePart: 'drum',
   battery: null,
+  batteryAt: null,
+  received: new Set(),
   speaker: null,
   haptics: null,
   midiMode: 0,
@@ -95,8 +97,12 @@ function updateConnectionUi() {
     : (webMidiContextOk() ? 'Podłącz Orba 2 przez USB lub Bluetooth' : 'Lokalny plik: USB MIDI może być blokowane');
   $('#refreshState').disabled = !state.connected;
   $('#restoreBaselineBtn').disabled = !state.connected || !state.baseline || state.baselineRestoreBusy;
-  $('#batteryBadge').textContent = `🔋 ${state.battery == null ? '?' : Math.max(0,Math.min(100,state.battery))+'%'}`;
-  $('#secureBadge').textContent = webMidiContextOk() ? 'USB ready' : 'LOCAL';
+  $('#batteryBadge').textContent = state.battery == null ? 'Bateria: —' : 'Bateria: '+state.battery+'%';
+  $('#batteryBadge').title=state.batteryAt ? 'Odczyt: '+new Date(state.batteryAt).toLocaleTimeString() : 'Brak poprawnego odczytu';
+  $('#disconnectBtn').disabled=!state.connected;
+  $('#enableSpeakerBtn').disabled=!state.connected;
+  $('#speakerStatus').textContent='Stan głośnika: '+(state.speaker==null?'nieodczytany':state.speaker?'włączony':'wyłączony');
+  $('#secureBadge').textContent=webMidiContextOk()?'HTTPS':'Plik lokalny';
   const bs = $('#baselineStatus');
   if (bs) bs.textContent = state.baseline ? `Punkt startowy: ${new Date(state.baselineCapturedAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}` : 'Punkt startowy: brak';
 }
@@ -123,12 +129,13 @@ function updatePartsUi() {
 }
 
 function syncSlider(sel,outSel,val){
+  if($(sel).dataset.dragging==='true')return;
   $(sel).value = Math.round(val);
-  $(outSel).textContent = `${Math.round(val)}%`;
+  $(outSel).textContent = `${Math.round(val)}%`; paintKnob($(sel));
 }
 
 function updateDeviceUi(){
-  $('#batteryBadge').textContent = `🔋 ${state.battery == null ? '--' : state.battery}%`;
+  
   $('#hapticsToggle').checked = !!state.haptics;
   if ($('#speakerToggle')) $('#speakerToggle').checked = !!state.speaker;
   $('#midiModeSelect').value = String(state.midiMode ?? 0);
@@ -138,7 +145,8 @@ function updateDeviceUi(){
   $('#scaleSelect').value = String(state.scale ?? 0);
   $('#metronomeToggle').checked = !!state.metronome;
   $('#loopFlag').textContent = `Loop: ${state.hasLoop == null ? '—' : state.hasLoop ? 'jest' : 'pusty'}`;
-  $('#transportBadge').textContent = `⏺ ${state.transportState == null ? 'idle' : 'state '+state.transportState}`;
+  $('#transportBadge').textContent=state.transportState==null?'Looper: brak odczytu':'Looper: kod '+state.transportState;
+  $('#transportBadge').title='Surowy stan loopera. Znaczenie kodów wymaga potwierdzenia na urządzeniu.';
 }
 
 function updateAllUi(){ updateConnectionUi(); updatePartsUi(); updateDeviceUi(); }
@@ -161,6 +169,8 @@ function resolvePresetFilename(part, displayName){
 
 function captureBaseline(manual=false){
   if (!state.connected) { if (manual) toast('Najpierw połącz Orbę'); return; }
+  const required=['1:3','3:29','3:13','3:14','7:7','3:18','3:19','3:32'];
+  if(!required.every(k=>state.received.has(k))||PART_ORDER.some(p=>Object.values(state.fx[p]).some(v=>v==null))){if(manual)toast('Najpierw wykonaj pełny Odczyt. Brakuje danych.');return;}
   state.baseline = {
     activePart: state.activePart,
     haptics: state.haptics,
@@ -226,10 +236,17 @@ async function syncAndMaybeCaptureBaseline(){
 }
 
 // ---------- Protocol transport ----------
-async function sendPayload(payload, {quiet=false}={}) {
+let sendQueue=Promise.resolve();
+let connectionGeneration=0;
+function sendPayload(payload,options={}) {
+ const generation=connectionGeneration;
+ const next=sendQueue.then(()=>generation===connectionGeneration?sendPayloadNow(payload,options):false);
+ sendQueue=next.catch(()=>false); return next;
+}
+async function sendPayloadNow(payload, {quiet=false}={}) {
   if (!state.connected) { if (!quiet) toast('Najpierw połącz Orbę'); return false; }
   const msg = buildSysex(payload);
-  if (!quiet) log('TX', hex(msg));
+  log('TX', hex(msg));
   try {
     if (state.transport === 'USB') {
       state.midiOut.send(msg);
@@ -254,7 +271,8 @@ function onMidiBytes(data) {
   if (!bytes.length) return;
   if (bytes[0] === 0xF0) {
     const parsed = parseSysex(bytes);
-    if (!parsed) return;
+    if (!parsed) {log('RX: niepoprawna ramka');return;}
+    if(!parsed.crcOk){log('RX: odrzucono błędne CRC',hex(bytes));return;}
     log('RX', hex(bytes));
     handleReply(parsed.payload);
     return;
@@ -278,9 +296,11 @@ function handleReply(payload) {
   const domain = payload[1];
   const addr = (payload[2] << 8) | payload[3];
   const data = payload.slice(4);
+  if(!data.length){log("RX: pusta odpowiedź",domain,addr);return;}
+  state.received.add(`${domain}:${addr}`);
   if (domain === 0x01 && addr === 0x0003 && data.length) state.activePart = PART_BY_WIRE[data[0]] || state.activePart;
   else if (domain === 0x03 && addr === 0x000c) state.speaker = !!data[0];
-  else if (domain === 0x03 && addr === 0x000f) state.battery = data[0];
+  else if (domain === 0x03 && addr === 0x000f) {if(data.length===1 && data[0]<=100){state.battery=data[0];state.batteryAt=Date.now();}else log('BATTERY: nieznany format',data);}
   else if (domain === 0x03 && addr === 0x001d) state.haptics = !!data[0];
   else if (domain === 0x03 && addr === 0x000d) state.midiMode = data[0];
   else if (domain === 0x03 && addr === 0x000e) state.pitchBend = data[0];
@@ -311,8 +331,11 @@ function handleReply(payload) {
   updateAllUi();
 }
 
+let refreshBusy=false;
 async function refreshState(quiet=false){
-  if (!state.connected) return;
+  if(!state.connected||refreshBusy)return;
+  refreshBusy=true; const generation=connectionGeneration;
+  try {
   const requests = [
     ...Object.values(GETS),
     ...PART_ORDER.map(getPresetName),
@@ -320,12 +343,15 @@ async function refreshState(quiet=false){
     ...PART_ORDER.map(getQuantize),
   ];
   for (const p of requests) {
+    if(!state.connected||generation!==connectionGeneration)break;
     await sendPayload(p,{quiet});
-    await sleep(state.transport === 'BLE' ? 22 : 6);
+    await sleep(state.transport==='BLE'?100:35);
   }
+  } finally {refreshBusy=false;}
 }
 
 async function connectUsb(){
+  if(state.connected)await disconnectDevice();
   if (!navigator.requestMIDIAccess) { toast('Ta przeglądarka nie ma Web MIDI'); return; }
   if (!webMidiContextOk()) {
     $('#contextWarning').hidden = false;
@@ -350,15 +376,17 @@ async function connectUsb(){
       return (n.includes('orba')?10:0)+(n.includes('lead')?5:0)+(n.includes('artiphon')?2:0);
     };
     outputs.sort((a,b)=>score(b)-score(a)); inputs.sort((a,b)=>score(b)-score(a));
-    const out = outputs.find(p=>score(p)>=10) || outputs[0];
-    const input = inputs.find(p=>score(p)>=10) || inputs[0];
+    const out=outputs.find(p=>score(p)>=10);
+    const input=inputs.find(p=>score(p)>=10);
     if (!out || !input) throw new Error('Nie znaleziono portów MIDI Orby');
-    state.midiOut = out; state.midiIn = input;
+    resetDeviceReadings();
+    state.midiOut=out;state.midiIn=input;
+    access.onstatechange=()=>{if(out.state==='disconnected'||input.state==='disconnected')disconnectDevice();};
     input.onmidimessage = e => onMidiBytes(e.data);
     state.connected = true; state.transport = 'USB';
     log('USB connected', out.name, '/', input.name);
     updateAllUi(); toast('Połączono po USB MIDI');
-    await sleep(120); await syncAndMaybeCaptureBaseline();
+    log('Połączono pasywnie. Brak TX. Kliknij Odczyt.');
   } catch(e){
     log('USB ERROR', e.name, e.message);
     const msg = e?.name === 'NotAllowedError' ? 'Brak zgody na Web MIDI/SysEx. Użyj wersji HTTPS i zezwól stronie na MIDI.' : e.message;
@@ -372,6 +400,7 @@ const BLE_CHAR = '7772e5db-3868-4112-a1a9-f2669d106bf3';
 const bleParser = new BleMidiSysexParser(onMidiBytes);
 
 async function connectBle(){
+  if(state.connected)await disconnectDevice();
   if (!navigator.bluetooth) { toast('Web Bluetooth niedostępny — użyj Chrome/Chromium'); return; }
   try {
     const device = await navigator.bluetooth.requestDevice({filters:[{services:[BLE_SERVICE]}],optionalServices:[BLE_SERVICE]});
@@ -381,12 +410,12 @@ async function connectBle(){
     await char.startNotifications();
     char.addEventListener('characteristicvaluechanged', e => bleParser.feed(new Uint8Array(e.target.value.buffer.slice(0))));
     device.addEventListener('gattserverdisconnected', () => {
-      state.connected=false; state.transport=null; state.bleChar=null; updateAllUi(); toast('Bluetooth rozłączony');
+      if(state.bleDevice===device)disconnectDevice();
     });
-    state.bleDevice=device; state.bleChar=char; state.connected=true; state.transport='BLE';
+    resetDeviceReadings();state.bleDevice=device;state.bleChar=char;state.connected=true;state.transport='BLE';
     log('BLE connected', device.name || device.id);
     updateAllUi(); toast('Połączono przez Bluetooth');
-    await sleep(180); await syncAndMaybeCaptureBaseline();
+    log('Połączono pasywnie. Brak TX. Kliknij Odczyt.');
   } catch(e){ log('BLE ERROR', e.message); toast(`Bluetooth: ${e.message}`); }
 }
 
@@ -583,7 +612,10 @@ async function toggleMicRecord(){
 function bindEvents(){
   $$('.mode-btn').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
   $$('.view-tab').forEach(b=>b.onclick=()=>setView(b.dataset.viewTarget));
-  $('#usbConnect').onclick=connectUsb; $('#bleConnect').onclick=connectBle; $('#refreshState').onclick=()=>refreshState(false);
+  $('#usbConnect').onclick=connectUsb; $('#bleConnect').onclick=connectBle; $('#refreshState').onclick=async()=>{await refreshState(false);await requestBatteryWithRetry();captureBaseline(false);toast('Odczyt zakończony');};
+  $('#disconnectBtn').onclick=disconnectDevice;
+  $('#enableSpeakerBtn').onclick=async()=>{if(confirm('Włączyć wewnętrzny głośnik Orby?')){await sendPayload(setSpeaker(true));await sleep(180);await sendPayload(GETS.speaker);}};
+  $('#downloadLog').onclick=()=>dlBlob(new Blob(['Orba Lab V1.2\n'+navigator.userAgent+'\n'+state.log.join('\n')],{type:'text/plain'}),'orba-lab-diagnostics.txt');
   $('#restoreBaselineBtn').onclick=restoreBaseline;
   $('#saveBaselineBtn').onclick=()=>captureBaseline(true);
   $$('.part-card').forEach(card=>card.addEventListener('click',e=>{if(e.target.closest('select'))return;const p=card.dataset.part;state.activePart=p;updatePartsUi();sendPayload(setActivePart(p));setTimeout(()=>refreshState(true),120);}));
@@ -598,7 +630,7 @@ function bindEvents(){
   $('#metronomeToggle').onchange=()=>{state.metronome=$('#metronomeToggle').checked;sendPayload(setMetronome(state.metronome));};
   $('#mixerRefresh').onclick=()=>PART_ORDER.includes(state.activePart)&&['volume','pan','reverb','delay'].forEach(e=>sendPayload(getFx(state.activePart,e),{quiet:true}));
   const sliders=[['volSlider','volOut','volume'],['panSlider','panOut','pan'],['revSlider','revOut','reverb'],['delSlider','delOut','delay']];
-  sliders.forEach(([id,out,effect])=>{let t;$('#'+id).oninput=()=>{$('#'+out).textContent=`${$('#'+id).value}%`;clearTimeout(t);t=setTimeout(()=>{const v=Number($('#'+id).value);state.fx[state.activePart][effect]=v;sendPayload(setFx(state.activePart,effect,v),{quiet:true});updatePartsUi();},55);};});
+  sliders.forEach(([id,out,effect])=>{let t;$('#'+id).oninput=()=>{$('#'+out).textContent=`${$('#'+id).value}%`;paintKnob($('#'+id));clearTimeout(t);const part=state.activePart,v=Number($('#'+id).value);t=setTimeout(()=>{state.fx[part][effect]=v;sendPayload(setFx(part,effect,v),{quiet:true});updatePartsUi();},55);};});
   $('#hapticsToggle').onchange=()=>{state.haptics=$('#hapticsToggle').checked;sendPayload(setHaptics(state.haptics));};
   if ($('#speakerToggle')) $('#speakerToggle').onchange=()=>{state.speaker=$('#speakerToggle').checked;sendPayload(setSpeaker(state.speaker));};
   $('#midiModeSelect').onchange=()=>{state.midiMode=Number($('#midiModeSelect').value);sendPayload(setMidiMode(state.midiMode));};
@@ -628,14 +660,44 @@ function initSelects(){
 }
 
 async function init(){
-  setMode(state.mode);setView(state.view);initSelects();bindEvents();drawWave();updateAllUi();
+  setMode(state.mode);setView(state.view);initSelects();bindEvents();initKnobs();drawWave();updateAllUi();
   $('#contextWarning').hidden = webMidiContextOk();
-  $('#secureBadge').textContent=webMidiContextOk()?'USB ready':'LOCAL';
+  $('#secureBadge').textContent=webMidiContextOk()?'HTTPS':'Plik lokalny';
   if(!webMidiContextOk()) log('WARNING: local/non-HTTPS context; Web MIDI SysEx may be blocked.');
   if('serviceWorker' in navigator && window.isSecureContext) navigator.serviceWorker.register('./sw.js').catch(()=>{});
   await renderSampleLibrary();
   loadPresetLibrary();
-  log('Orba Lab V1 ready');
+  log('Orba Lab V1.2 ready · passive connect');
+}
+
+function resetDeviceReadings(){
+ connectionGeneration++;clearTimeout(refreshTimer);
+ state.battery=null;state.batteryAt=null;state.speaker=null;state.haptics=null;
+ state.transportState=null;state.hasLoop=null;state.baseline=null;state.baselineCapturedAt=null;state.received.clear();
+ state.presets={drum:'',bass:'',chord:'',lead:''};state.selectedPresetFiles={drum:'',bass:'',chord:'',lead:''};
+ state.fx=Object.fromEntries(PART_ORDER.map(p=>[p,{volume:null,pan:null,reverb:null,delay:null,quantize:null}]));bleParser.buf=null;
+}
+async function disconnectDevice(){
+ const device=state.bleDevice;state.connected=false;state.transport=null;
+ if(state.midiIn){state.midiIn.onmidimessage=null;try{await state.midiIn.close();}catch(_){}}
+ if(state.midiOut){try{await state.midiOut.close();}catch(_){}}
+ if(state.midiAccess)state.midiAccess.onstatechange=null;
+ state.midiIn=null;state.midiOut=null;state.bleDevice=null;state.bleChar=null;
+ if(device?.gatt?.connected)device.gatt.disconnect();resetDeviceReadings();updateAllUi();log('Rozłączono');
+}
+function paintKnob(input){
+ const shell=input.closest('.knob-shell');if(!shell)return;
+ shell.style.setProperty('--angle',(-135+Number(input.value)*2.7)+'deg');
+ shell.style.setProperty('--sweep',(Number(input.value)*2.7)+'deg');
+}
+function initKnobs(){
+ $$('.knob-shell input').forEach(input=>{
+  const shell=input.closest('.knob-shell');let drag=null;
+  shell.addEventListener('pointerdown',e=>{if(e.button!==0)return;e.preventDefault();input.focus();input.dataset.dragging='true';drag={y:e.clientY,value:Number(input.value)};shell.setPointerCapture(e.pointerId);});
+  shell.addEventListener('pointermove',e=>{if(!drag)return;input.value=String(Math.max(0,Math.min(100,Math.round(drag.value+(drag.y-e.clientY)*.65))));input.dispatchEvent(new Event('input',{bubbles:true}));});
+  const end=()=>{drag=null;delete input.dataset.dragging;};shell.addEventListener('pointerup',end);shell.addEventListener('pointercancel',end);
+  input.addEventListener('input',()=>paintKnob(input));paintKnob(input);
+ });
 }
 
 init();
