@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 
 const protocolSource=await readFile(new URL('./protocol.js',import.meta.url),'utf8');
 const protocol=await import('data:text/javascript;base64,'+Buffer.from(protocolSource).toString('base64'));
-const source=(await readFile(new URL('./app.js',import.meta.url),'utf8')).replace(/^import[\s\S]*?from '\.\/protocol.js\?v=1.2';/,'').replace(/\ninit\(\);\s*$/,'');
+const source=(await readFile(new URL('./app.js',import.meta.url),'utf8')).replace(/^import[\s\S]*?from '\.\/protocol.js\?v=1.3';/,'').replace(/\ninit\(\);\s*$/,'');
 const node={textContent:'',classList:{toggle(){},add(){},remove(){}},style:{setProperty(){}},dataset:{},closest(){return null;}};
 const context=vm.createContext({...protocol,console,setTimeout,clearTimeout,Uint8Array,TextEncoder,TextDecoder,Date,localStorage:{getItem(){return null},setItem(){}},document:{querySelector(){return node},querySelectorAll(){return []},body:node},location:{protocol:'https:',hostname:'test'},navigator:{},confirm(){return true}});
 vm.runInContext(source,context);

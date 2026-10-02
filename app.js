@@ -4,7 +4,7 @@ import {
   looper, setKey, setScale, setQuantize, setHaptics, setSpeaker,
   setMetronome, setMidiMode, setPitchBend, GETS, getPresetName,
   getQuantize, bleWrapMidiPackets, BleMidiSysexParser, decodeAscii
-} from './protocol.js?v=1.2';
+} from './protocol.js?v=1.3';
 
 const $ = (s, root=document) => root.querySelector(s);
 const $$ = (s, root=document) => [...root.querySelectorAll(s)];
@@ -78,7 +78,7 @@ function setMode(mode) {
 }
 
 function setView(view) {
-  state.view = view;
+  state.view = view;document.body.dataset.view=view;document.getElementById('sampleStudio')?.contentWindow.postMessage({type:'studio-visibility',visible:view==='sample'},location.origin);
   localStorage.setItem('orbaLabView', view);
   $$('.view-tab').forEach(b => b.classList.toggle('active', b.dataset.viewTarget === view));
   $$('.view-pane').forEach(p => p.classList.toggle('active', p.dataset.view === view));
@@ -89,7 +89,10 @@ function webMidiContextOk(){
   return proto === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 }
 
+let lastLogoConnection=false,connectionNoticeTimer;
 function updateConnectionUi() {
+ const online=state.connected;$('#connectionLogo').classList.toggle('connected',online);
+ if(online!==lastLogoConnection){lastLogoConnection=online;const notice=$('#connectionNotice');notice.textContent=online?'Połączono':'Rozłączono';notice.classList.add('show');clearTimeout(connectionNoticeTimer);connectionNoticeTimer=setTimeout(()=>notice.classList.remove('show'),2200);}
   $('#statusDot').classList.toggle('online', state.connected);
   $('#connectionStatus').textContent = state.connected ? `Połączono · ${state.transport}` : 'Niepołączono';
   $('#connectionDetail').textContent = state.connected
@@ -385,7 +388,7 @@ async function connectUsb(){
     input.onmidimessage = e => onMidiBytes(e.data);
     state.connected = true; state.transport = 'USB';
     log('USB connected', out.name, '/', input.name);
-    updateAllUi(); toast('Połączono po USB MIDI');
+    updateAllUi();
     log('Połączono pasywnie. Brak TX. Kliknij Odczyt.');
   } catch(e){
     log('USB ERROR', e.name, e.message);
@@ -414,7 +417,7 @@ async function connectBle(){
     });
     resetDeviceReadings();state.bleDevice=device;state.bleChar=char;state.connected=true;state.transport='BLE';
     log('BLE connected', device.name || device.id);
-    updateAllUi(); toast('Połączono przez Bluetooth');
+    updateAllUi();
     log('Połączono pasywnie. Brak TX. Kliknij Odczyt.');
   } catch(e){ log('BLE ERROR', e.message); toast(`Bluetooth: ${e.message}`); }
 }
@@ -615,7 +618,7 @@ function bindEvents(){
   $('#usbConnect').onclick=connectUsb; $('#bleConnect').onclick=connectBle; $('#refreshState').onclick=async()=>{await refreshState(false);await requestBatteryWithRetry();captureBaseline(false);toast('Odczyt zakończony');};
   $('#disconnectBtn').onclick=disconnectDevice;
   $('#enableSpeakerBtn').onclick=async()=>{if(confirm('Włączyć wewnętrzny głośnik Orby?')){await sendPayload(setSpeaker(true));await sleep(180);await sendPayload(GETS.speaker);}};
-  $('#downloadLog').onclick=()=>dlBlob(new Blob(['Orba Lab V1.2\n'+navigator.userAgent+'\n'+state.log.join('\n')],{type:'text/plain'}),'orba-lab-diagnostics.txt');
+  $('#downloadLog').onclick=()=>dlBlob(new Blob(['Orba Lab V1.3\n'+navigator.userAgent+'\n'+state.log.join('\n')],{type:'text/plain'}),'orba-lab-diagnostics.txt');
   $('#restoreBaselineBtn').onclick=restoreBaseline;
   $('#saveBaselineBtn').onclick=()=>captureBaseline(true);
   $$('.part-card').forEach(card=>card.addEventListener('click',e=>{if(e.target.closest('select'))return;const p=card.dataset.part;state.activePart=p;updatePartsUi();sendPayload(setActivePart(p));setTimeout(()=>refreshState(true),120);}));
@@ -667,7 +670,7 @@ async function init(){
   if('serviceWorker' in navigator && window.isSecureContext) navigator.serviceWorker.register('./sw.js').catch(()=>{});
   await renderSampleLibrary();
   loadPresetLibrary();
-  log('Orba Lab V1.2 ready · passive connect');
+  log('Orba Lab V1.3 ready · passive connect');
 }
 
 function resetDeviceReadings(){
@@ -701,3 +704,4 @@ function initKnobs(){
 }
 
 init();
+

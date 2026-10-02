@@ -1,5 +1,5 @@
 {
-  "name": "Orba Lab V1.2",
+  "name": "Orba Lab V1.3",
   "short_name": "Orba Lab",
   "description": "Unofficial web control surface for Artiphon Orba 2",
   "start_url": "./",
@@ -10,3 +10,4 @@
     {"src":"icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}
   ]
 }
+

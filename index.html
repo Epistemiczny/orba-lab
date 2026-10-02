@@ -4,18 +4,18 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="theme-color" content="#101216" />
-  <title>Orba Lab V1.2</title>
+  <title>Orba Lab V1.3</title>
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=1.2" />
+  <link rel="stylesheet" href="styles.css?v=1.3" />
 </head>
 <body class="simple">
   <div class="app-shell">
     <header class="topbar">
       <div class="brand-wrap">
-        <div class="orb-mark" aria-hidden="true"><span></span></div>
+        <img id="connectionLogo" src="logo-play.png" alt="Epistemic" width="42" height="42">
         <div>
-          <div class="brand">ORBA LAB <span class="version">V1.2</span></div>
+          <div class="brand">ORBA LAB <span class="version">V1.3</span></div>
           <div class="subtitle">unofficial control surface · Orba 2</div>
         </div>
       </div>
@@ -126,7 +126,7 @@
       </section>
       </div>
 
-      <div class="view-pane sample-view" data-view="sample">
+      <div class="view-pane sample-view" data-view="sample"><iframe id="sampleStudio" src="sampler.html?embedded=1" title="Sample Studio" allow="microphone"></iframe><div hidden>
       <section class="panel sample-panel">
         <div class="panel-title-row">
           <div><div class="eyebrow">SAMPLE WORKBENCH</div><h2>Nagraj lub dodaj własny dźwięk</h2></div>
@@ -169,7 +169,7 @@
       </section>
       </div>
 
-      <div class="view-pane settings-view" data-view="settings"><section class="advanced-zone">
+      </div><div class="view-pane settings-view" data-view="settings"><section class="advanced-zone">
         <article class="panel">
           <div class="panel-title-row"><div><div class="eyebrow">DEVICE</div><h2>Ustawienia Orby</h2></div><span class="tag">Pełny</span></div>
           <p class="muted small">Samo połączenie nie wysyła poleceń do Orby. Kliknij Odczyt, aby pobrać ustawienia. Zamknij inne aplikacje korzystające z Orby przed testem.</p><div class="settings-grid">
@@ -204,12 +204,13 @@
     </main>
 
     <footer>
-      <span>Orba Lab V1.2 · nieoficjalny projekt interoperacyjny</span>
+      <span>Orba Lab V1.3 · nieoficjalny projekt interoperacyjny</span>
       <span>Nie zmienia firmware. Nie wykonuje skanowania nieznanych rejestrów.</span>
     </footer>
   </div>
 
-  <div class="toast" id="toast"></div>
-  <script type="module" src="app.js?v=1.2"></script>
+  <div class="toast" id="toast"></div><div id="connectionNotice" role="status" aria-live="polite"></div>
+  <script type="module" src="app.js?v=1.3"></script>
 </body>
 </html>
+

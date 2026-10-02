@@ -1,28 +1,17 @@
-# Orba Lab V1.2
+# Orba Lab V1.3 — wersja do testów
 
-Nieoficjalny panel do Orba 2. Strona: https://epistemiczny.github.io/orba-lab/
+Pełna aplikacja: index.html. Wymaga hostowania przez HTTPS dla USB MIDI i mikrofonu (localhost do testów na komputerze). Nie otwieraj index.html jako pliku na telefonie do testowania USB.
 
-## Interfejs
-Gra / Sample / Ustawienia. Dotykowe pokrętła z pierścieniem wartości: przeciągaj w górę lub w dół. Klawiatura: strzałki na aktywnym pokrętle. Telefon w pionie: mikser nad looperem, naturalne przewijanie bez przycinania. Wzorcem podziału pracy są Ableton Note i OP-1; aplikacja nie kopiuje ich funkcji.
+Sample: nowy edytor P5, import/nagrywanie, zoom/pan, dotknięcie ustawiające START, uchwyty, długości 1/2/5/10/20 s zachowujące START, odsłuch ze wskaźnikiem, pętla, przycinanie ciszy, opcjonalny magnes, normalize/gain/fade, eksport WAV z nazwą źródła i zakresem.
+Magnes: 3 ms zapasu przed początkiem, 5 ms za końcem; zachowuje audio oryginału, nie generuje ciszy. Szuka lokalnych zmian poziomu. Nie rozdziela instrumentów w miksie; w ciągłej muzyce może nie znaleźć pewnej granicy.
+Logo Play Epistemic: przygaszone bez połączenia, rozświetlone po połączeniu USB/BLE. Połączono/Rozłączono pojawia się chwilowo. Stan oznacza połączenie transportu; nie potwierdza obsługi transferu sampli.
 
-## Połączenie i diagnostyka
-Samo połączenie USB/Bluetooth jest pasywne i nie wysyła poleceń. Kliknij Odczyt, aby pobrać stan. Transmisje są kolejkowane; pełne odczyty nie nakładają się. Przy rozłączeniu czyszczone są stan baterii i punkt przywracania. Odrzucane są odpowiedzi z błędnym CRC i nieznany format baterii. Brak odczytu oznacza —, nigdy domyślne 100%.
+## Test telefonu
+1. Importuj piosenkę, przybliż i przesuń do późniejszej części.
+2. Dotknij wykresu. START ma przejść w to miejsce. Przeciągnięcie tła nie zmienia zaznaczenia.
+3. Wybierz 2 s, następnie 5 s: START pozostaje. Blisko końca pliku koniec jest ograniczony długością pliku.
+4. W zakładce Auto włącz Magnes i przesuń uchwyt blisko wyraźnego początku dźwięku. Porównaj z magnesem wyłączonym.
+5. Odsłuch/Pętla/Stop i zapis WAV. Wyjście do Gra/Ustawienia zatrzymuje odsłuch.
+6. Połącz prawdziwą Orbę przez USB, potem osobno BT. Sprawdź logo i znikający napis. Samo połączenie pozostaje pasywne.
 
-Przywracanie jest dostępne dopiero po odczycie wymaganych parametrów. Nie kasuje loopów ani sampli. Przyciskiem w Ustawieniach można świadomie włączyć głośnik; aplikacja nie robi tego automatycznie.
-
-## Test na urządzeniu
-1. Zamknij Artiphon Connect i inne aplikacje MIDI.
-2. Włącz Orbę i sprawdź jej dźwięk bez kabla.
-3. Podepnij kabel bez klikania USB w przeglądarce. Sprawdź dźwięk.
-4. Kliknij USB, sprawdź dźwięk. Samo połączenie powinno pozostawić log bez TX.
-5. Kliknij Odczyt, sprawdź dźwięk oraz baterię.
-6. Przy problemie: Ustawienia → Zapisz log. Zanotuj, na którym kroku wystąpił.
-7. Rozłącz, odłącz kabel i przetestuj Bluetooth osobno.
-
-Przyczyna zgłoszonej ciszy po USB nie została potwierdzona na fizycznym urządzeniu. Zmiany transportu i walidacji wymagają testu sprzętowego. Transfer sampli nadal zablokowany; sample są lokalne.
-
-## Źródła
-- https://www.ableton.com/en/note/manual/
-- https://teenage.engineering/guides/op-1
-- https://github.com/holofermes/orba-protocol/blob/main/spec/SPEC.md
-- THIRD_PARTY_NOTICES.md
+Transfer WAV/presetów do Orby nie jest wdrożony. Urządzenie i firmware nie były dostępne w środowisku testów. Testy przeglądarkowe edytora, integracji i symulowanego USB oraz testy regresji protokołu przeszły. Fizyczna Orba wymaga testu użytkownika.

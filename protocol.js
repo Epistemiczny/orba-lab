@@ -230,3 +230,4 @@ export function decodeAscii(data) {
   const arr = end >= 0 ? clean.slice(0, end) : clean;
   return new TextDecoder().decode(new Uint8Array(arr)).trim();
 }
+
